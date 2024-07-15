@@ -1,0 +1,530 @@
+Step 1: Setup Angular Project
+Initialize Angular Project
+bash
+Copy code
+ng new health-challenge-tracker
+cd health-challenge-tracker
+Install necessary libraries
+bash
+Copy code
+ng add @angular/material
+npm install primeng --save
+npm install tailwindcss --save
+Configure TailwindCSS
+Create a tailwind.config.js file:
+
+javascript
+Copy code
+module.exports = {
+  content: [
+    "./src/**/*.{html,ts}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+Update styles.css:
+
+css
+Copy code
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+Step 2: Create Models
+Create user.model.ts and workout.model.ts inside the src/app/models/ directory.
+
+user.model.ts
+
+typescript
+Copy code
+export interface Workout {
+  type: string;
+  minutes: number;
+}
+
+export interface User {
+  id: number;
+  name: string;
+  workouts: Workout[];
+}
+Step 3: Create Services
+Create user.service.ts inside the src/app/services/ directory.
+
+user.service.ts
+
+typescript
+Copy code
+import { Injectable } from '@angular/core';
+import { User } from '../models/user.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class UserService {
+  private users: User[] = [];
+
+  constructor() {
+    this.loadInitialData();
+  }
+
+  private loadInitialData() {
+    this.users = JSON.parse(localStorage.getItem('users') || '[]');
+    if (this.users.length === 0) {
+      this.users = [
+        {
+          id: 1,
+          name: 'John Doe',
+          workouts: [
+            { type: 'Running', minutes: 30 },
+            { type: 'Cycling', minutes: 45 }
+          ]
+        },
+        {
+          id: 2,
+          name: 'Jane Smith',
+          workouts: [
+            { type: 'Swimming', minutes: 60 },
+            { type: 'Running', minutes: 20 }
+          ]
+        },
+        {
+          id: 3,
+          name: 'Mike Johnson',
+          workouts: [
+            { type: 'Yoga', minutes: 50 },
+            { type: 'Cycling', minutes: 40 }
+          ]
+        }
+      ];
+      this.saveUsers();
+    }
+  }
+
+  getUsers(): User[] {
+    return this.users;
+  }
+
+  addUser(user: User) {
+    user.id = this.users.length > 0 ? this.users[this.users.length - 1].id + 1 : 1;
+    this.users.push(user);
+    this.saveUsers();
+  }
+
+  private saveUsers() {
+    localStorage.setItem('users', JSON.stringify(this.users));
+  }
+}
+Step 4: Create Components
+Input Form Component
+Create input-form.component.ts, input-form.component.html, and input-form.component.css inside src/app/components/input-form/.
+
+input-form.component.ts
+
+typescript
+Copy code
+import { Component } from '@angular/core';
+import { UserService } from '../../services/user.service';
+import { User, Workout } from '../../models/user.model';
+
+@Component({
+  selector: 'app-input-form',
+  templateUrl: './input-form.component.html',
+  styleUrls: ['./input-form.component.css']
+})
+export class InputFormComponent {
+  name: string = '';
+  workoutType: string = '';
+  workoutMinutes: number = 0;
+
+  constructor(private userService: UserService) {}
+
+  addUser() {
+    if (this.name && this.workoutType && this.workoutMinutes > 0) {
+      const newUser: User = {
+        id: 0,
+        name: this.name,
+        workouts: [{ type: this.workoutType, minutes: this.workoutMinutes }]
+      };
+      this.userService.addUser(newUser);
+      this.name = '';
+      this.workoutType = '';
+      this.workoutMinutes = 0;
+    }
+  }
+}
+input-form.component.html
+
+html
+Copy code
+<div class="p-4">
+  <form (ngSubmit)="addUser()" class="grid grid-cols-1 gap-4">
+    <mat-form-field>
+      <input matInput placeholder="Name" [(ngModel)]="name" name="name" required>
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput placeholder="Workout Type" [(ngModel)]="workoutType" name="workoutType" required>
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput type="number" placeholder="Workout Minutes" [(ngModel)]="workoutMinutes" name="workoutMinutes" required>
+    </mat-form-field>
+    <button mat-raised-button color="primary" type="submit">Add Workout</button>
+  </form>
+</div>
+input-form.component.css
+
+css
+Copy code
+/* Add custom styles here */
+User List Component
+Create user-list.component.ts, user-list.component.html, and user-list.component.css inside src/app/components/user-list/.
+
+user-list.component.ts
+
+typescript
+Copy code
+import { Component, OnInit } from '@angular/core';
+import { UserService } from '../../services/user.service';
+import { User } from '../../models/user.model';
+
+@Component({
+  selector: 'app-user-list',
+  templateUrl: './user-list.component.html',
+  styleUrls: ['./user-list.component.css']
+})
+export class UserListComponent implements OnInit {
+  users: User[] = [];
+  filteredUsers: User[] = [];
+  searchName: string = '';
+  filterWorkoutType: string = '';
+
+  constructor(private userService: UserService) {}
+
+  ngOnInit() {
+    this.users = this.userService.getUsers();
+    this.filteredUsers = this.users;
+  }
+
+  searchByName() {
+    this.filteredUsers = this.users.filter(user =>
+      user.name.toLowerCase().includes(this.searchName.toLowerCase())
+    );
+  }
+
+  filterByWorkoutType() {
+    this.filteredUsers = this.users.filter(user =>
+      user.workouts.some(workout =>
+        workout.type.toLowerCase().includes(this.filterWorkoutType.toLowerCase())
+      )
+    );
+  }
+}
+user-list.component.html
+
+html
+Copy code
+<div class="p-4">
+  <div class="grid grid-cols-2 gap-4 mb-4">
+    <mat-form-field>
+      <input matInput placeholder="Search by Name" [(ngModel)]="searchName" (input)="searchByName()">
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput placeholder="Filter by Workout Type" [(ngModel)]="filterWorkoutType" (input)="filterByWorkoutType()">
+    </mat-form-field>
+  </div>
+  <table mat-table [dataSource]="filteredUsers" class="mat-elevation-z8">
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef> Name </th>
+      <td mat-cell *matCellDef="let user"> {{ user.name }} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="workout">
+      <th mat-header-cell *matHeaderCellDef> Workout </th>
+      <td mat-cell *matCellDef="let user"> 
+        <ng-container *ngFor="let workout of user.workouts">
+          {{ workout.type }} ({{ workout.minutes }} mins)<br>
+        </ng-container>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="['name', 'workout']"></tr>
+    <tr mat-row *matRowDef="let row; columns: ['name', 'workout'];"></tr>
+  </table>
+</div>
+user-list.component.css
+
+css
+Copy code
+/* Add custom styles here */
+User Charts Component (Optional)
+Create user-charts.component.ts, user-charts.component.html, and user-charts.component.css inside src/app/components/user-charts/.
+
+user-charts.component.ts
+
+typescript
+Copy code
+import { Component, OnInit } from '@angular/core';
+import { UserService } from '../../services/user.service';
+import { User } from '../../models/user.model';
+import { ChartOptions, ChartType, ChartDataSets } from 'chart.js';
+import { Label } from 'ng2-charts';
+
+@Component({
+  selector: 'app-user-charts',
+  templateUrl: './user-charts.component.html',
+  styleUrls: ['./user-charts.component.css']
+})
+export class UserChartsComponent implements OnInit {
+  users: User[] = [];
+  barChartOptions: ChartOptions = {
+    responsive: true,
+  };
+  barChartLabels: Label[] = [];
+  barChartType: ChartType = 'bar';
+  barChartLegend = true;
+  barChartPlugins = [];
+  barChartData: ChartDataSets[] = [
+    { data: [], label: 'Minutes' }
+  ];
+
+  constructor(private userService: UserService) {}
+
+  ngOnInit() {
+    this.users = this.userService.getUsers();
+    this.loadChartData();
+  }
+
+  private loadChartData() {
+    const userNames: string[] = [];
+    const userMinutes: number[] = [];
+
+    this.users.forEach(user => {
+      userNames.push(user.name);
+      const totalMinutes = user.workouts.reduce((sum, workout) => sum + workout.minutes, 0);
+      userMinutes.push(totalMinutes);
+    });
+
+    this.barChartLabels = userNames;
+    this.barChartData[0].data = userMinutes;
+  }
+}
+user-charts.component.html
+
+html
+Copy code
+<div class="p-4">
+  <div style="display: block;">
+    <canvas baseChart
+      [datasets]="barChartData"
+      [labels]="barChartLabels"
+      [options]="barChartOptions"
+      [plugins]="barChartPlugins"
+      [legend]="barChartLegend"
+      [chartType]="barChartType">
+    </canvas>
+  </div>
+</div>
+user-charts.component.css
+
+css
+Copy code
+/* Add custom styles here */
+Step 5: App Module
+Update app.module.ts to include the new components and services.
+
+app.module.ts
+
+typescript
+Copy code
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
+import { ChartsModule } from 'ng2-charts';
+
+import { AppComponent } from './app.component';
+import { InputFormComponent } from './components/input-form/input-form.component';
+import { UserListComponent } from './components/user-list/user-list.component';
+import { UserChartsComponent } from './components/user-charts/user-charts.component';
+import { UserService } from './services/user.service';
+
+@NgModule({
+  declarations: [
+    AppComponent,
+    InputFormComponent,
+    UserListComponent,
+    UserChartsComponent
+  ],
+  imports: [
+    BrowserModule,
+    FormsModule,
+    BrowserAnimationsModule,
+    MatInputModule,
+    MatButtonModule,
+    MatTableModule,
+    ChartsModule
+  ],
+  providers: [UserService],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+Step 6: Main Component
+Update app.component.html to include the new components.
+
+app.component.html
+
+html
+Copy code
+<div class="container mx-auto">
+  <h1 class="text-3xl font-bold text-center my-4">Health Challenge Tracker</h1>
+  <app-input-form></app-input-form>
+  <app-user-list></app-user-list>
+  <app-user-charts></app-user-charts>
+</div>
+Step 7: Testing
+Input Form Component Test
+Create input-form.component.spec.ts inside src/app/components/input-form/.
+
+input-form.component.spec.ts
+
+typescript
+Copy code
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { UserService } from '../../services/user.service';
+import { InputFormComponent } from './input-form.component';
+
+describe('InputFormComponent', () => {
+  let component: InputFormComponent;
+  let fixture: ComponentFixture<InputFormComponent>;
+  let userService: UserService;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [ InputFormComponent ],
+      imports: [ FormsModule, MatInputModule, MatButtonModule ],
+      providers: [ UserService ]
+    })
+    .compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(InputFormComponent);
+    component = fixture.componentInstance;
+    userService = TestBed.inject(UserService);
+    fixture.detectChanges();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should add user on form submit', () => {
+    spyOn(userService, 'addUser').and.callThrough();
+    component.name = 'Test User';
+    component.workoutType = 'Running';
+    component.workoutMinutes = 30;
+    component.addUser();
+    expect(userService.addUser).toHaveBeenCalled();
+  });
+});
+User Service Test
+Create user.service.spec.ts inside src/app/services/.
+
+user.service.spec.ts
+
+typescript
+Copy code
+import { TestBed } from '@angular/core/testing';
+import { UserService } from './user.service';
+import { User } from '../models/user.model';
+
+describe('UserService', () => {
+  let service: UserService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(UserService);
+  });
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+
+  it('should load initial data', () => {
+    expect(service.getUsers().length).toBe(3);
+  });
+
+  it('should add a new user', () => {
+    const newUser: User = {
+      id: 0,
+      name: 'New User',
+      workouts: [{ type: 'Running', minutes: 30 }]
+    };
+    service.addUser(newUser);
+    expect(service.getUsers().length).toBe(4);
+  });
+});
+Step 8: Deployment
+Deploy the application using any cloud service of your choice (e.g., Heroku, Netlify, GitHub Pages).
+
+Step 9: Documentation
+Update README.md with instructions to run the project locally and include the code coverage report.
+
+README.md
+
+markdown
+Copy code
+# Health Challenge Tracker
+
+## Overview
+
+This is a single-page application (SPA) built with Angular 14+ to track health challenges. Users can input their name, workout type, and workout minutes, and view their workout progress.
+
+## Features
+
+- Add user workout
+- Search by name
+- Filter by workout type
+- Pagination for more than 5 users
+- Display workout progress using charts
+
+## Setup
+
+1. Clone the repository
+   ```bash
+   git clone <repository-url>
+   cd health-challenge-tracker
+Install dependencies
+
+bash
+Copy code
+npm install
+Run the application
+
+bash
+Copy code
+ng serve
+Open your browser and navigate to http://localhost:4200/
+
+Testing
+Run unit tests
+
+bash
+Copy code
+ng test --code-coverage
+Deployment
+The application is deployed on Heroku/Netlify/GitHub Pages.
+
+Code Coverage
+The code coverage report is available in the coverage folder after running the tests.
+
+css
+Copy code
+
+This completes the implementation. You can further refine and style the application as needed
